@@ -75,7 +75,7 @@ def pepper_call():
                 pepper_tts("Calling contact 3")
                 # Contact 3
 """
-'''Initial function of the raise arm function: 
+'''Initial implementation of the raise arm function: 
 The pepper_raiseArm() function controls Pepper's right arm movement by executing a sequence of 
 commands using NAOqi's motion control APIs.'''
 
