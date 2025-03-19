@@ -32,21 +32,43 @@ if __name__=="__main__":
             # Display video
             cv2.imshow("Pepper Camera Feed", frame)
 
-            # Execute a series of action according to character
+            # Listen for key inputs to trigger actions
             '''
             Right now for testing purpose, I use keyboard inputs.
             '''
-            while (key != 27):          #27 is Esc
-                key = cv2.waitKey(1) & 0xFF
+            key = cv2.waitKey(1) & 0xFF  # Wait for key input
 
-                if key == ord('c'):
-                    client_socket.send(b'c')
+            if key == 27:  # ESC key to exit
+                break
 
-                elif key == ord('z'):
-                    client_socket.send(b'z')
+            # Send command to Pepper based on detected key
+            elif key == ord('c'):
+                client_socket.send(b'c')
 
-                elif key == ord('f'):
-                    client_socket.send(b'f')
+            elif key == ord('z'):
+                client_socket.send(b'z')
+
+            elif key == ord('f'):
+                client_socket.send(b'f')
+
+            # New gestures added:
+            elif key == ord('w'):  # Wave gesture
+                client_socket.send(b'wave')
+
+            elif key == ord('p'):  # Pointing gesture
+                client_socket.send(b'point')
+
+            elif key == ord('l'):  # Raise left arm
+                client_socket.send(b'left')
+
+            elif key == ord('r'):  # Raise right arm
+                client_socket.send(b'right')
+
+            elif key == ord('b'):  # Raise both arms
+                client_socket.send(b'both')
+
+            elif key == ord('q'):  # Peace sign
+                client_socket.send(b'peace')
 
     finally:
         client_socket.close()
