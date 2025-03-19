@@ -80,9 +80,9 @@ The pepper_raiseArm() function controls Pepper's right arm movement by executing
 commands using NAOqi's motion control APIs.'''
 
 def pepper_raiseArm():
-    """
+    '''
     Function to raise Pepper's right arm smoothly.
-    """
+    '''
     print("Raising arm...")
     tts = ALProxy("ALTextToSpeech", PEPPER_IP, PORT)
     motion = ALProxy("ALMotion", PEPPER_IP, PORT)
