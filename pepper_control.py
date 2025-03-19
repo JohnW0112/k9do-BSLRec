@@ -74,6 +74,10 @@ def pepper_call():
                 pepper_ipadPrint("Calling contact 3")
                 pepper_tts("Calling contact 3")
                 # Contact 3
+"""
+'''Initial function of the raise arm function: 
+The pepper_raiseArm() function controls Pepper's right arm movement by executing a sequence of 
+commands using NAOqi's motion control APIs.'''
 
 def pepper_raiseArm():
     """
@@ -117,7 +121,7 @@ def pepper_raiseArm():
     
     print("Arm movement complete.")
 
-    
+ """   
 
 def pepper_sing():
     #TODO: Sing
