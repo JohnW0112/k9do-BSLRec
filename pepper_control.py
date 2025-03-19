@@ -75,9 +75,48 @@ def pepper_call():
                 # Contact 3
 
 def pepper_raiseArm():
-    #TODO: Raise an arm
+    """
+    Function to raise Pepper's right arm smoothly.
+    """
     print("Raising arm...")
-    pepper_tts("Hi")
+    tts = ALProxy("ALTextToSpeech", PEPPER_IP, PORT)
+    motion = ALProxy("ALMotion", PEPPER_IP, PORT)
+    posture = ALProxy("ALRobotPosture", PEPPER_IP, PORT)
+    
+    # Wake up robot (if needed)
+    motion.wakeUp()
+    
+    # Ensure Pepper is in a standing posture
+    posture.goToPosture("Stand", 0.8)
+    
+    # Enable arms control
+    motion.setStiffnesses("RArm", 1.0)
+    
+    # Define joint angles for raising the right arm
+    joint_names = ["RShoulderPitch", "RShoulderRoll", "RElbowYaw", "RElbowRoll", "RWristYaw"]
+    target_angles = [0.2, -0.3, 1.5, 1.0, 0.0]  # Angles in radians
+    
+    # Define movement speed (fraction of max speed)
+    speed = 0.2  
+    
+    # Move the arm to the target position
+    motion.setAngles(joint_names, target_angles, speed)
+    
+    tts.say("Hi! I'm raising my arm.")
+    
+    # Hold the arm up for a moment
+    import time
+    time.sleep(2)
+    
+    # Return arm to a neutral position
+    neutral_angles = [1.5, -0.2, 0.0, 0.0, 0.0]
+    motion.setAngles(joint_names, neutral_angles, speed)
+    
+    # Relax the arm
+    motion.setStiffnesses("RArm", 0.0)
+    
+    print("Arm movement complete.")
+
     
 
 def pepper_sing():
