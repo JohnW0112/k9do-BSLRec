@@ -4,6 +4,7 @@ import socket
 import struct
 import numpy as np
 from naoqi import ALProxy
+import time
 
 # Pepper's IP and Port
 PEPPER_IP = "192.168.0.109"  # Pepper IP
@@ -105,7 +106,6 @@ def pepper_raiseArm():
     tts.say("Hi! I'm raising my arm.")
     
     # Hold the arm up for a moment
-    import time
     time.sleep(2)
     
     # Return arm to a neutral position
