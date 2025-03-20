@@ -7,11 +7,11 @@ import struct
 
 # Connect to the Python 2 server
 HOST = '127.0.0.1'  # Localhost
-PORT = 5005  # Port to send commands
+PORT = 56565  # Port to send commands
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
 
-PORT_VIDEO = 5006  # Port for video stream
+PORT_VIDEO = 5007  # Port for video stream
 video_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 video_socket.connect((HOST, PORT_VIDEO))
 
@@ -20,6 +20,13 @@ if __name__=="__main__":
         while True:
             # Receive frame size
             frame_size = struct.unpack("L", video_socket.recv(struct.calcsize("L")))[0]
+            data = video_socket.recv(struct.calcsize("L"))
+            if len(data) < 4:
+                print("Warning: Received incomplete frame size. Skipping frame...")
+                continue  # Skip this frame
+
+            frame_size = struct.unpack("L", data)[0]
+
 
             # Receive frame data
             frame_data = b""
@@ -32,43 +39,33 @@ if __name__=="__main__":
             # Display video
             cv2.imshow("Pepper Camera Feed", frame)
 
-            # Listen for key inputs to trigger actions
+            # Execute a series of action according to character
             '''
             Right now for testing purpose, I use keyboard inputs.
             '''
-            key = cv2.waitKey(1) & 0xFF  # Wait for key input
+            while (key != 27):  # 27 is Esc
+                key = cv2.waitKey(1) & 0xFF
 
-            if key == 27:  # ESC key to exit
-                break
+                if key == ord('c'):
+                    client_socket.send(b'c')
 
-            # Send command to Pepper based on detected key
-            elif key == ord('c'):
-                client_socket.send(b'c')
+                elif key == ord('l'):  # Raise Left Arm
+                    client_socket.send(b'left')
 
-            elif key == ord('z'):
-                client_socket.send(b'z')
+                elif key == ord('r'):  # Raise Right Arm
+                    client_socket.send(b'right')
 
-            elif key == ord('f'):
-                client_socket.send(b'f')
+                elif key == ord('b'):  # Raise Both Arms
+                    client_socket.send(b'both')
 
-            # New gestures added:
-            elif key == ord('w'):  # Wave gesture
-                client_socket.send(b'wave')
+                elif key == ord('p'):  # Point
+                    client_socket.send(b'point')
 
-            elif key == ord('p'):  # Pointing gesture
-                client_socket.send(b'point')
+                elif key == ord('w'):  # Wave
+                    client_socket.send(b'wave')
 
-            elif key == ord('l'):  # Raise left arm
-                client_socket.send(b'left')
-
-            elif key == ord('r'):  # Raise right arm
-                client_socket.send(b'right')
-
-            elif key == ord('b'):  # Raise both arms
-                client_socket.send(b'both')
-
-            elif key == ord('q'):  # Peace sign
-                client_socket.send(b'peace')
+                elif key == ord('f'):
+                    client_socket.send(b'f')
 
     finally:
         client_socket.close()
