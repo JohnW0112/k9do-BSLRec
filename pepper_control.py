@@ -11,8 +11,8 @@ import time
 
 # Pepper's IP and Port
 # PEPPER_IP = "192.168.0.109"  # Pepper IP
-PEPPER_IP = "127.0.0.1"
-PORT = 56565
+PEPPER_IP = "localhost"
+PORT = 57683
 
 '''PARAMETERS'''
 # Subscribe to the video feed
@@ -22,7 +22,7 @@ fps = 30                    # max fps = 30
 
 # Set up a server socket to receive messages
 HOST = '127.0.0.1'  # Localhost
-PORT_CONTROL = 56565  # For getting command
+PORT_CONTROL = 5684  # For getting command
 PORT_VIDEO = 5007 # For sending video feed
 server_socket_con = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket_con.bind((HOST, PORT_CONTROL))
@@ -47,7 +47,13 @@ except socket.timeout:
 
 
 # Create proxy
-video_service = ALProxy("ALVideoDevice", PEPPER_IP, PORT)
+# video_service = ALProxy("ALVideoDevice", PEPPER_IP, PORT)
+try:
+    video_service = ALProxy("ALVideoDevice", PEPPER_IP, PORT)
+except RuntimeError:
+    print("Error: Could not connect to Pepper on port {}. Is Choregraphe running?".format(PORT))
+    exit(1)  # Exit the script if connection fails
+
 posture = ALProxy("ALRobotPosture", PEPPER_IP, PORT)
 behavior = ALProxy("ALBehaviorManager", PEPPER_IP, PORT)
 touch = ALProxy("ALTouch", PEPPER_IP, PORT)
