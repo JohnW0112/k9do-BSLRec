@@ -1,25 +1,29 @@
 #! /usr/bin/python2
+# -*- coding: utf-8 -*-
 
 import socket
 import struct
 import numpy as np
 from naoqi import ALProxy
+import qi
 import time
 
+
 # Pepper's IP and Port
-PEPPER_IP = "192.168.0.109"  # Pepper IP
-PORT = 9559
+# PEPPER_IP = "192.168.0.109"  # Pepper IP
+PEPPER_IP = "127.0.0.1"
+PORT = 56565
 
 '''PARAMETERS'''
 # Subscribe to the video feed
 resolution = 3              # 1280x960
 color_space = 13            # BGR color space
-fps = 30                    # max fos = 30
+fps = 30                    # max fps = 30
 
 # Set up a server socket to receive messages
 HOST = '127.0.0.1'  # Localhost
-PORT_CONTROL = 5005  # For getting command
-PORT_VIDEO = 5006 # For sending video feed
+PORT_CONTROL = 56565  # For getting command
+PORT_VIDEO = 5007 # For sending video feed
 server_socket_con = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket_con.bind((HOST, PORT_CONTROL))
 server_socket_con.listen(1)
@@ -31,14 +35,18 @@ print("Connected to:", addr_con)
 server_socket_vid = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket_vid.bind((HOST, PORT_VIDEO))
 server_socket_vid.listen(1)
+server_socket_vid.settimeout(10)  # Timeout to avoid blocking forever
+
 print("Waiting for video feed connection from process.py...")
-conn_vid, addr_vid = server_socket_vid.accept()
-print("Connected to:", addr_vid)
+try:
+    conn_vid, addr_vid = server_socket_vid.accept()
+    print("Connected to:", addr_vid)
+except socket.timeout:
+    print("Warning: No video connection established. Continuing...")
+    conn_vid = None
+
 
 # Create proxy
-'''
-Everything you need from the NAOqi should be defined here. I just imported some basic proxies
-'''
 video_service = ALProxy("ALVideoDevice", PEPPER_IP, PORT)
 posture = ALProxy("ALRobotPosture", PEPPER_IP, PORT)
 behavior = ALProxy("ALBehaviorManager", PEPPER_IP, PORT)
@@ -49,86 +57,82 @@ def pepper_tts(word):
     print("TTS started...")
 
 def pepper_ipadPrint(word):
-    #TODO: Print words onto the ipad
+    #TODO: Print words onto the iPad
     print("Printing words")
 
 def pepper_call():
-    #TODO: Call someone according to selected contact and display "Calling ${CONTACT}" output onto ipad.
+    #TODO: Call someone according to selected contact and display "Calling ${CONTACT}" output onto iPad.
     print("Select call contact")
-    while (not data):
+    data = None
+    while not data:
         data = conn_con.recv(1024).decode()
     
         if data:
-            if (data == '1'):
+            if data == '1':
                 print("Calling contact 1")
                 pepper_ipadPrint("Calling contact 1")
                 pepper_tts("Calling contact 1")
-                # Contact 1
-            elif (data == '2'):
+            elif data == '2':
                 print("Calling contact 2")
                 pepper_ipadPrint("Calling contact 2")
                 pepper_tts("Calling contact 2")
-                # Contact 2
-            elif (data == '3'):
+            elif data == '3':
                 print("Calling contact 3")
                 pepper_ipadPrint("Calling contact 3")
                 pepper_tts("Calling contact 3")
-                # Contact 3
-"""
-'''Initial implementation of the raise arm function: 
-The pepper_raiseArm() function controls Pepper's right arm movement by executing a sequence of 
-commands using NAOqi's motion control APIs.'''
 
-def pepper_raiseArm():
-    '''
-    Function to raise Pepper's right arm smoothly.
-    '''
-    print("Raising arm...")
-    tts = ALProxy("ALTextToSpeech", PEPPER_IP, PORT)
-    motion = ALProxy("ALMotion", PEPPER_IP, PORT)
-    posture = ALProxy("ALRobotPosture", PEPPER_IP, PORT)
-    
-    # Wake up robot (if needed)
-    motion.wakeUp()
-    
-    # Ensure Pepper is in a standing posture
-    posture.goToPosture("Stand", 0.8)
-    
-    # Enable arms control
-    motion.setStiffnesses("RArm", 1.0)
-    
-    # Define joint angles for raising the right arm
-    joint_names = ["RShoulderPitch", "RShoulderRoll", "RElbowYaw", "RElbowRoll", "RWristYaw"]
-    target_angles = [0.2, -0.3, 1.5, 1.0, 0.0]  # Angles in radians
-    
-    # Define movement speed (fraction of max speed)
-    speed = 0.2  
-    
-    # Move the arm to the target position
-    motion.setAngles(joint_names, target_angles, speed)
-    
-    tts.say("Hi! I'm raising my arm.")
-    
-    # Hold the arm up for a moment
-    time.sleep(2)
-    
-    # Return arm to a neutral position
-    neutral_angles = [1.5, -0.2, 0.0, 0.0, 0.0]
-    motion.setAngles(joint_names, neutral_angles, speed)
-    
-    # Relax the arm
-    motion.setStiffnesses("RArm", 0.0)
-    
-    print("Arm movement complete.")
+def pepper_raiseArm(action):
+    """
+    Controls Pepper's arms based on the specified action.
+    Ensures compatibility with both Choregraphe and the real robot.
+    :param action: str - one of ["left", "right", "both", "point", "wave"]
+    """
+    session = qi.Session()
+    try:
+        session.connect("tcp://127.0.0.1:9559")  # Connect to the real robot
+        motion_service = session.service("ALMotion")
+        print("Connected to real Pepper robot.")
+    except RuntimeError:
+        print("Running in Choregraphe mode (simulation).")
+        motion_service = None  # No motion service in Choregraphe
 
- """   
+
+    def set_angles(joint_names, angles, speed):
+        if motion_service:
+            motion_service.setAngles(joint_names, angles, speed)
+        else:
+            print("Simulating movement: {} -> {}".format(joint_names, angles))  # Fix for Python 2
+
+
+    if action == "left":
+        set_angles(["LShoulderPitch", "LElbowYaw", "LElbowRoll"], [-0.5, 0.0, -1.0], 0.2)
+
+    elif action == "right":
+        set_angles(["RShoulderPitch", "RElbowYaw", "RElbowRoll"], [-0.5, 0.0, 1.0], 0.2)
+
+    elif action == "both":
+        set_angles(["LShoulderPitch", "LElbowYaw", "LElbowRoll", "RShoulderPitch", "RElbowYaw", "RElbowRoll"],
+                   [-0.5, 0.0, -1.0, -0.5, 0.0, 1.0], 0.2)
+
+    elif action == "point":
+        set_angles(["RShoulderPitch", "RElbowYaw", "RWristYaw"], [0.5, -1.5, 1.0], 0.2)
+
+    elif action == "wave":
+        for _ in range(3):
+            set_angles(["RShoulderPitch", "RElbowYaw", "RElbowRoll"], [-0.5, 0.0, 1.0], 0.5)
+            time.sleep(0.5)
+            set_angles(["RShoulderPitch", "RElbowYaw", "RElbowRoll"], [-0.5, 0.0, 0.5], 0.5)
+            time.sleep(0.5)
+
+    else:
+        print("Invalid action specified for pepper_raiseArm(). Choose from 'left', 'right', 'both', 'point', or 'wave'.")
 
 def pepper_sing():
     #TODO: Sing
     print("Singing...")
 
 def pepper_summon():
-    #TODO: Pepper respond to the call of its name, and move towards user
+    #TODO: Pepper responds to being called and moves toward the user
     print("Being summoned...")
     pepper_tts("On my way")
 
@@ -137,26 +141,14 @@ def pepper_checkTouch():
     touched_sensors = touch.getStatus()
     
     for sensor in touched_sensors:
-        sensor_name = sensor[0]  # Name of the sensor
-        is_touched = sensor[1]  # 1 if touched, 0 if not
-        
+        sensor_name = sensor[0]
+        is_touched = sensor[1]
+
         if is_touched:
             pepper_tts("Oh hi there, how can I help you")
 
-            '''
-            if "Head" in sensor_name:
-                tts.say("head")
-            elif "HandLeft" in sensor_name:
-                tts.say("hand left")
-            elif "HandRight" in sensor_name:
-                tts.say("hand right")
-            elif "Bumper" in sensor_name:
-                tts.say("bumper")
-            '''
-
-if __name__=="__main__":
+if __name__ == "__main__":
     try:
-        # Get video feed and send to process.py
         subscriber_id = video_service.subscribeCamera("pepper_stream", 0, resolution, color_space, fps)
         image_container = video_service.getImageRemote(subscriber_id)
 
@@ -166,18 +158,17 @@ if __name__=="__main__":
                 array = image_container[6]
                 frame = np.frombuffer(array, dtype=np.uint8).reshape((height, width, 3))
 
-                # Send frame size and data
                 conn_vid.sendall(struct.pack("L", len(frame.tobytes())) + frame.tobytes())
+
             data = conn_con.recv(1024).decode()
             if not data:
                 break
 
-
             if data == 'c':
                 pepper_call()
 
-            elif data == 'z':
-                pepper_raiseArm()
+            elif data in ['left', 'right', 'both', 'point', 'wave']:
+                pepper_raiseArm(data)
 
             elif data == 'f':
                 pepper_sing()
