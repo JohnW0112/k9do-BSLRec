@@ -7,7 +7,7 @@ import struct
 
 # Connect to the Python 2 server
 HOST = '127.0.0.1'  # Localhost
-PORT = 56565  # Port to send commands
+PORT = 5684  # Port to send commands has to be the same as pepper control.py but diff from pepper choreography
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
 
@@ -19,7 +19,7 @@ if __name__=="__main__":
     try:
         while True:
             # Receive frame size
-            frame_size = struct.unpack("L", video_socket.recv(struct.calcsize("L")))[0]
+            # frame_size = struct.unpack("L", video_socket.recv(struct.calcsize("L")))[0]
             data = video_socket.recv(struct.calcsize("L"))
             if len(data) < 4:
                 print("Warning: Received incomplete frame size. Skipping frame...")
@@ -34,7 +34,8 @@ if __name__=="__main__":
                 frame_data += video_socket.recv(frame_size - len(frame_data))
 
             # Convert bytes to image
-            frame = np.frombuffer(frame_data, dtype=np.uint8).reshape((480, 640, 3))
+            frame = np.frombuffer(frame_data, dtype=np.uint8).reshape((960, 1280, 3))
+            print("Received frame size:", len(frame_data))
 
             # Display video
             cv2.imshow("Pepper Camera Feed", frame)
@@ -43,6 +44,7 @@ if __name__=="__main__":
             '''
             Right now for testing purpose, I use keyboard inputs.
             '''
+            key = -1
             while (key != 27):  # 27 is Esc
                 key = cv2.waitKey(1) & 0xFF
 
