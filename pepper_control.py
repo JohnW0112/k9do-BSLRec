@@ -5,6 +5,7 @@ import struct
 import numpy as np
 import time
 from naoqi import ALProxy
+from time import sleep
 
 # Pepper's IP and Port
 PEPPER_IP = "192.168.0.109"  # Pepper IP
@@ -14,7 +15,7 @@ PORT = 9559
 # Subscribe to the video feed
 resolution = 3              # 1280x960
 color_space = 13            # BGR color space
-fps = 30                    # max fos = 30
+fps = 10                    # max fos = 30
 
 # Set up a server socket to receive messages
 HOST = '127.0.0.1'  # Localhost
@@ -149,9 +150,9 @@ if __name__=="__main__":
     try:
         # Get video feed and send to process.py
         subscriber_id = video_service.subscribeCamera("pepper_stream", 0, resolution, color_space, fps)
-        image_container = video_service.getImageRemote(subscriber_id)
 
         while True:
+            image_container = video_service.getImageRemote(subscriber_id)
             if image_container:
                 width, height = image_container[0], image_container[1]
                 array = image_container[6]
