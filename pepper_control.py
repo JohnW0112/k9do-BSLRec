@@ -3,6 +3,7 @@
 import socket
 import struct
 import numpy as np
+import cv2
 from naoqi import ALProxy
 from time import sleep
 
@@ -28,12 +29,12 @@ print("Waiting for control connection from process.py...")
 conn_con, addr_con = server_socket_con.accept()
 print("Connected to:", addr_con)
 
-server_socket_vid = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket_vid.bind((HOST, PORT_VIDEO))
-server_socket_vid.listen(1)
-print("Waiting for video feed connection from process.py...")
-conn_vid, addr_vid = server_socket_vid.accept()
-print("Connected to:", addr_vid)
+server_socket_vid = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#server_socket_vid.bind((HOST, PORT_VIDEO))
+#server_socket_vid.listen(1)
+#print("Waiting for video feed connection from process.py...")
+#conn_vid, addr_vid = server_socket_vid.accept()
+#print("Connected to:", addr_vid)
 
 # Create proxy
 '''
@@ -115,21 +116,30 @@ def pepper_checkTouch():
 if __name__=="__main__":
     try:
         # Get video feed and send to process.py
-        subscriber_id = video_service.subscribeCamera("pepper_stream", 0, resolution, color_space, fps)
+        subscriber_id = video_service.subscribe("_client", resolution, color_space, fps)
 
         while True:
-            image_container = video_service.getImageRemote(subscriber_id)
-            if image_container:
-                width, height = image_container[0], image_container[1]
-                array = image_container[6]
-                frame = np.frombuffer(array, dtype=np.uint8).reshape((height, width, 3))
+            # Get image from Pepper
+            image = video_service.getImageRemote(subscriber_id)
+            if image is not None:
 
-                # Send frame size and data
-                conn_vid.sendall(struct.pack("L", len(frame.tobytes())) + frame.tobytes())
+                width, height = image[0], image[1]
+                img_data = np.frombuffer(image[6], dtype=np.uint8).reshape((height, width, 3))
+
+                # Encode image to JPEG for efficient transmission
+                _, encoded_img = cv2.imencode('.jpg', img_data, [cv2.IMWRITE_JPEG_QUALITY, 80])
+
+                # Send image size first
+                server_socket_vid.sendto(struct.pack("!I", len(encoded_img)), (HOST, PORT_VIDEO))
+                # Send image data
+                server_socket_vid.sendto(encoded_img.tobytes(), (HOST, PORT_VIDEO))
+            else:
+                print("No image!")
+
+            # Getting controls from process.py
             data = conn_con.recv(1024).decode()
             if not data:
                 break
-
 
             if data == 'c':
                 pepper_call()

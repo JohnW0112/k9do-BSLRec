@@ -13,6 +13,7 @@ k9do-BSLRec aims to implement BSL (British Sign Language) into Pepper. Pepper wi
 **Python 2.7** packages required:
 - Numpy (1.16.6)
 - naoqi
+- opencv2 (3.4.0.12)
 > To install the naoqi package, please go to the official website for the [installation guide](https://www.bx.psu.edu/~thanh/naoqi/dev/python/install_guide.html)
 
 ***Installing Packages:***
