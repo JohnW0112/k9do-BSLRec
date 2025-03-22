@@ -80,9 +80,29 @@ def pepper_call():
                 # Contact 3
 
 def pepper_raiseArm():
-    #TODO: Raise an arm
+    motion = ALProxy("ALMotion", PEPPER_IP, PORT)
+    posture = ALProxy("ALRobotPosture", PEPPER_IP, PORT)
+
+    # Wake up robot
+    motion.wakeUp()
+
+    # Raise right arm
+    joint_names = ["RShoulderPitch", "RShoulderRoll", "RElbowYaw", "RElbowRoll"]
+    raise_angles = [0.0, -0.5, 1.5, 1.0]  # Friendly outward arm raise
+    speed = 0.2
+
     print("Raising arm...")
-    pepper_tts("Hi")
+    motion.setAngles(joint_names, raise_angles, speed)
+    pepper_tts("Hi, I'm raising my arm!")
+
+    # Hold for 2 seconds
+    sleep(2)
+
+    # Lower arm back down
+    lower_angles = [1.5, 0.2, 1.2, 0.5]  # Relaxed natural posture
+    print("Lowering arm...")
+    motion.setAngles(joint_names, lower_angles, speed)
+
     
 
 def pepper_sing():
