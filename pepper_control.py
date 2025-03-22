@@ -3,6 +3,7 @@
 import socket
 import struct
 import numpy as np
+import time
 from naoqi import ALProxy
 from time import sleep
 
@@ -14,7 +15,7 @@ PORT = 9559
 # Subscribe to the video feed
 resolution = 3              # 1280x960
 color_space = 13            # BGR color space
-fps = 30                    # max fos = 30
+fps = 10                    # max fos = 30
 
 # Set up a server socket to receive messages
 HOST = '127.0.0.1'  # Localhost
@@ -43,6 +44,9 @@ video_service = ALProxy("ALVideoDevice", PEPPER_IP, PORT)
 posture = ALProxy("ALRobotPosture", PEPPER_IP, PORT)
 behavior = ALProxy("ALBehaviorManager", PEPPER_IP, PORT)
 touch = ALProxy("ALTouch", PEPPER_IP, PORT)
+speech_recognition = ALProxy("ALSpeechRecognition", PEPPER_IP, PORT)
+motion = ALProxy("ALMotion", PEPPER_IP, PORT)
+audio = ALProxy("ALAudioSourceLocalization", PEPPER_IP, PORT)
 
 def pepper_tts(word):
     #TODO: Text-2-speech
@@ -107,6 +111,36 @@ def pepper_sing():
 
 def pepper_summon():
     #TODO: Pepper respond to the call of its name, and move towards user
+        speech_recognition.setLanguage("English")
+    vocabulary = ["Come here Pepper"]
+    speech_recognition.setVocabulary(vocabulary, False)  # False = No word spotting
+    speech_recognition.subscribe("PepperCommand")
+
+    print("Listening for 'Come here Pepper'...")
+    detected = False
+    start_time = time.time()
+
+    while time.time() - start_time < 20: 
+        localization_result = audio.getEstimatedSource()
+        if localization_result:
+            azimuth = localization_result[0] 
+            print("Sound detected at angle {}".format(azimuth))
+
+            recognized_words = speech_recognition.getRecognizedWords()
+            if recognized_words and "Come here Pepper" in recognized_words:
+                print("Recognized 'Come here Pepper'! Moving toward sound...")
+
+                motion.moveTo(0, 0, np.deg2rad(azimuth))
+                motion.moveTo(0.5, 0, 0) 
+                detected = True
+                break
+
+        time.sleep(1)  # Small delay to avoid overloading
+
+    speech_recognition.unsubscribe("PepperCommand")
+
+    if not detected:
+        print("Did not hear command in time."
     print("Being summoned...")
     pepper_tts("On my way")
 
@@ -136,9 +170,9 @@ if __name__=="__main__":
     try:
         # Get video feed and send to process.py
         subscriber_id = video_service.subscribeCamera("pepper_stream", 0, resolution, color_space, fps)
-        image_container = video_service.getImageRemote(subscriber_id)
 
         while True:
+            image_container = video_service.getImageRemote(subscriber_id)
             if image_container:
                 width, height = image_container[0], image_container[1]
                 array = image_container[6]

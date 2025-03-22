@@ -28,7 +28,7 @@ if __name__=="__main__":
             print(len(frame_data))
             # Convert bytes to image
             frame = np.frombuffer(frame_data, dtype=np.uint8).reshape((1280, 960, 3))
-            
+
             # Display video
             cv2.imshow("Pepper Camera Feed", frame)
 
@@ -36,6 +36,7 @@ if __name__=="__main__":
             '''
             Right now for testing purpose, I use keyboard inputs.
             '''
+            
             key = -1
             while (key != 27):          #27 is Esc
                 key = cv2.waitKey(1) & 0xFF
