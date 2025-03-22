@@ -114,7 +114,7 @@ while True:
             data += video_conn.recv(4096)
 
         frame_data = data[:msg_size]
-        frame = np.frombuffer(frame_data, dtype=np.uint8).reshape((480, 640, 3))
+        frame = np.frombuffer(frame_data, dtype=np.uint8).reshape((1280, 960, 3))
         gestures, annotated = detect_gestures(frame)
 
         if gestures:
