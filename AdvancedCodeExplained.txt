@@ -1,0 +1,83 @@
+[Perception]
+live_gesture_detector_pepper.py: Receives the video from Pepper, detects gestures with MediaPipe, sends back detected gesture to Pepper in the form of a command
+
+[Action]
+pepper_socket_streamer.py: Sends camera to PC, performs received gesture
+
+[HOW TO EXECUTE CODE]:
+
+[PYTHON3]
+Run the script:
+python3 live_gesture_detector_pepper.py
+This will:
+    -Wait for a camera stream from Pepper
+
+[PYTHON2]
+Run the script:
+python pepper_socket_streamer.py
+
+
+[EXPECTED BEHAVIOUR]
+🧍Stand in front of Pepper and perform a gesture (e.g. raise left arm)
+
+🤖 Pepper should copy the gesture you just did!
+
+
+[Important Setup Notes]
+
+1.Your PC must have MediaPipe, OpenCV, numpy
+2.The Pepper script must run in Python2
+3.Your PC and Pepper must be on the same network
+4.Make sure your PC allows incoming connections on ports 5006 and 5007 (except from pepper's port number, these port numbers can be changed)
+5.Update PC_IP = '192.168.0.101' in pepper_socket_streamer.py to match your PC’s local IP address
+  - To find your PC IP (on most systems):
+          ipconfig    # Windows
+          ifconfig    # macOS/Linux
+
+
+[DETAILS ;- CAN SKIP]
+pepper_socket_streamer.py
+💡 Think of this as Pepper acting like a camera and a robot waiting for instructions.
+
+It does two main things:
+1. Sends its camera frames to the PC:
+ - It captures one frame from Pepper's top camera
+
+ - Converts it to a byte stream
+
+ - Sends it to the PC over a socket (like a live video call)
+
+
+ 2. Waits for a gesture label from your PC
+  - Listens for a gesture name like "wave" or "point" coming back from the PC
+
+ - When it receives that name, it makes Pepper perform that motion using its motors
+
+ ========================================================================================================================
+live_gesture_detector_pepper.py
+💡 This script is the brain. It receives Pepper's camera, sees what gesture you're doing, and tells Pepper what to do.
+
+1. Receives video from Pepper
+
+ - The PC listens on a socket
+
+ - Pepper sends it a camera frame
+
+ - The PC turns that back into an OpenCV image
+
+2. Runs MediaPipe gesture detection
+It uses existing gesture logic to:
+
+ - Detect raised arms, wave, peace sign, etc.
+
+ - Returns the detected gesture(s)
+
+ 3. Sends gesture name back to Pepper
+  - Sends one gesture back to Pepper
+  
+      - For example: "point\n"
+  
+  - This goes to Pepper’s script, which reads it and moves accordingly
+
+
+
