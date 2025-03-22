@@ -13,9 +13,9 @@ PEPPER_IP = "192.168.0.109"
 PORT = 9559
 
 # === Pepper Video Setup ===
-resolution = 2  # VGA (640x480)
-color_space = 11  # RGB
-fps = 5
+resolution = 3 #2 # VGA (640x480)
+color_space = 13 #11  # RGB
+fps = 30  #5
 
 video = ALProxy("ALVideoDevice", PEPPER_IP, PORT)
 motion = ALProxy("ALMotion", PEPPER_IP, PORT)
