@@ -3,11 +3,14 @@
 
 #counter part is pepper_socket_streamer.py
 
+#!/usr/bin/env python
+# -*- encoding: UTF-8 -*-
+
+import socket
+import struct
 import cv2
 import numpy as np
 import mediapipe as mp
-import qi
-import argparse
 
 # === MediaPipe setup ===
 mp_pose = mp.solutions.pose
@@ -16,21 +19,19 @@ pose = mp_pose.Pose()
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2)
 mp_draw = mp.solutions.drawing_utils
 
-def fingers_status(hand_landmarks):
-    """Returns a list of which fingers are up: [thumb, index, middle, ring, pinky]"""
-    finger_states = []
+# === Networking ===
+VIDEO_PORT = 5006
+CMD_PORT = 5007
 
+def fingers_status(hand_landmarks):
+    finger_states = []
     thumb_tip = hand_landmarks.landmark[4]
     thumb_ip = hand_landmarks.landmark[3]
     finger_states.append(thumb_tip.x > thumb_ip.x)
-
     tip_ids = [8, 12, 16, 20]
     pip_ids = [6, 10, 14, 18]
     for tip, pip in zip(tip_ids, pip_ids):
-        finger_states.append(
-            hand_landmarks.landmark[tip].y < hand_landmarks.landmark[pip].y
-        )
-
+        finger_states.append(hand_landmarks.landmark[tip].y < hand_landmarks.landmark[pip].y)
     return finger_states
 
 def detect_gestures(image):
@@ -45,21 +46,16 @@ def detect_gestures(image):
 
     if pose_result.pose_landmarks:
         landmarks = pose_result.pose_landmarks.landmark
-        left_wrist = landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
-        right_wrist = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
-        left_shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
-        right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
-
-        left_raised = left_wrist.y < left_shoulder.y
-        right_raised = right_wrist.y < right_shoulder.y
-
-        if left_raised and right_raised:
+        lw = landmarks[mp_pose.PoseLandmark.LEFT_WRIST]
+        rw = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST]
+        ls = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
+        rs = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+        if lw.y < ls.y and rw.y < rs.y:
             gestures.append("raise_both_arms")
-        elif left_raised:
+        elif lw.y < ls.y:
             gestures.append("raise_left_arm")
-        elif right_raised:
+        elif rw.y < rs.y:
             gestures.append("raise_right_arm")
-
         mp_draw.draw_landmarks(image, pose_result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
     if hands_result.multi_hand_landmarks:
@@ -69,82 +65,76 @@ def detect_gestures(image):
             mp_draw.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
         if "Right" in hand_label_map:
-            right_hand = hand_label_map["Right"]
-            status = fingers_status(right_hand)
-            hand_y = (right_hand.landmark[0].y + right_hand.landmark[5].y) / 2
-
+            rh = hand_label_map["Right"]
+            status = fingers_status(rh)
+            hand_y = (rh.landmark[0].y + rh.landmark[5].y) / 2
             if sum(status[1:]) == 5 and hand_y < 0.5:
                 gestures.append("wave")
             if status[1] and not any(status[2:]):
                 gestures.append("point")
             if status[1] and status[2] and not any(status[3:]):
                 gestures.append("peace_sign")
-
         if "Left" in hand_label_map:
-            left_hand = hand_label_map["Left"]
-            status = fingers_status(left_hand)
+            lh = hand_label_map["Left"]
+            status = fingers_status(lh)
             if status[1] and status[2] and not any(status[3:]):
                 gestures.append("peace_sign")
 
     return list(set(gestures)), image
 
-def main(session):
-    # === Pepper camera config ===
-    video_service = session.service("ALVideoDevice")
-    resolution = 2  # VGA: 640x480
-    color_space = 11  # RGB
-    fps = 5
-    camera_index = 0  # Top camera
+# === Start sockets ===
+video_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+video_sock.bind(('', VIDEO_PORT))
+video_sock.listen(1)
+print("Waiting for Pepper video stream...")
+video_conn, _ = video_sock.accept()
+print("Video connected.")
 
-    subscriber_id = video_service.subscribeCamera("pepper_gesture_stream", camera_index, resolution, color_space, fps)
+cmd_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+cmd_sock.bind(('', CMD_PORT))
+cmd_sock.listen(1)
+print("Waiting for Pepper gesture control connection...")
+cmd_conn, _ = cmd_sock.accept()
+print("Command connected.")
 
-    # === Store last valid gestures across frames ===
-    last_valid_gestures = []
+last_sent = None
+last_valid_gesture = None
 
+while True:
     try:
-        while True:
-            nao_image = video_service.getImageRemote(subscriber_id)
-            if nao_image is None:
-                continue
+        payload_size = struct.calcsize("L")
+        data = b''
+        while len(data) < payload_size:
+            data += video_conn.recv(4096)
+        packed_msg_size = data[:payload_size]
+        msg_size = struct.unpack("L", packed_msg_size)[0]
+        data = data[payload_size:]
 
-            width, height = nao_image[0], nao_image[1]
-            array = nao_image[6]
+        while len(data) < msg_size:
+            data += video_conn.recv(4096)
 
-            image = np.frombuffer(bytearray(array), dtype=np.uint8).reshape((height, width, 3))
+        frame_data = data[:msg_size]
+        frame = np.frombuffer(frame_data, dtype=np.uint8).reshape((480, 640, 3))
+        gestures, annotated = detect_gestures(frame)
 
-            gestures, visual = detect_gestures(image)
+        if gestures:
+            gesture = gestures[0]  # pick one to send
+            last_valid_gesture = gesture
+        else:
+            gesture = last_valid_gesture
 
-            if gestures:
-                last_valid_gestures = gestures
-                print("New gestures detected:", gestures)
-            else:
-                gestures = last_valid_gestures
-                print("No new gesture – keeping last:", gestures)
+        if gesture != last_sent and gesture:
+            print("Sending gesture:", gesture)
+            cmd_conn.sendall((gesture + "\n").encode())
+            last_sent = gesture
 
-            # Save to gesture_labels.txt
-            with open("gesture_labels.txt", "w") as f:
-                for g in gestures:
-                    f.write(g + "\n")
+        cv2.imshow("Pepper Stream (from top camera)", annotated)
+        if cv2.waitKey(1) & 0xFF == 27:
+            break
 
-            # Show live feed with annotations (for debugging)
-            cv2.imshow("Pepper Camera Gesture Detection", visual)
-            if cv2.waitKey(1) & 0xFF == 27:
-                break
+    except Exception as e:
+        print("Error:", e)
+        break
 
-    finally:
-        video_service.unsubscribe(subscriber_id)
-        cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", type=str, default="192.168.0.109")
-    parser.add_argument("--port", type=int, default=9559)
-    args = parser.parse_args()
-
-    session = qi.Session()
-    try:
-        session.connect("tcp://" + args.ip + ":" + str(args.port))
-        main(session)
-    except RuntimeError:
-        print("Can't connect to Naoqi at ip \"{}\" on port {}".format(args.ip, args.port))
-        exit(1)
+video_conn.close()
+cmd_conn.close()
