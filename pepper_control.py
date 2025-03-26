@@ -46,7 +46,8 @@ behavior = ALProxy("ALBehaviorManager", PEPPER_IP, PORT)
 touch = ALProxy("ALTouch", PEPPER_IP, PORT)
 speech_recognition = ALProxy("ALSpeechRecognition", PEPPER_IP, PORT)
 motion = ALProxy("ALMotion", PEPPER_IP, PORT)
-audio = ALProxy("ALAudioSourceLocalization", PEPPER_IP, PORT)
+audio = ALProxy("ALSoundLocalization", PEPPER_IP, PORT)
+memory = ALProxy("ALMemory", PEPPER_IP, PORT)
 
 def pepper_tts(word):
     #TODO: Text-2-speech
@@ -111,39 +112,53 @@ def pepper_sing():
 
 def pepper_summon():
     #TODO: Pepper respond to the call of its name, and move towards user
-        speech_recognition.setLanguage("English")
-    vocabulary = ["Come here Pepper"]
-    speech_recognition.setVocabulary(vocabulary, False)  # False = No word spotting
-    speech_recognition.subscribe("PepperCommand")
+        speech_recognition.setLanguage("English") #sets recognised language as English
+        vocabulary = ["Come here Pepper"] #setting vocabulary as the phrase 'come here pepper'
+        speech_recognition.setVocabulary(vocabulary, False)  #"False" here turns off wordspotting
+        speech_recognition.subscribe("Summoning_Pepper") #subscribing to the ALSpeechRecognition module
+        print("Listening for 'Come here Pepper'...")
+    
+        detected = False
+        start_time = time.time() #start timer assuming no sound is detected
 
-    print("Listening for 'Come here Pepper'...")
-    detected = False
-    start_time = time.time()
+        while time.time() - start_time < 20: 
+            localise_sound = audio.getEstimatedSource()
+            if localise_sound:
+                azimuth = localise_sound[0] #finding the direction of the sound using the ALAudioSourceLocalization module
+                print("Sound detected at angle {}".format(azimuth)) 
 
-    while time.time() - start_time < 20: 
-        localization_result = audio.getEstimatedSource()
-        if localization_result:
-            azimuth = localization_result[0] 
-            print("Sound detected at angle {}".format(azimuth))
+                phrase_data = memory.getData("WordRecognized")
+                if phrase_data and len(phrase_data) >1:
+                    recognised_phrase = phrase_data[0]
+                    confidence = phrase_data[1]
+                    
+                else: 
+                    recognised_phrase = ""
+                    confidence = 0.0 #setting default values
+                    
+                if "Come here Pepper" in recognised_phrase and confidence >0.5: #pepper moves towards the sound if phrase detected and confidence is high
+                    print("Recognised 'Come here Pepper'! On my way...")
+                    pepper_tts("Recognised 'Come here Pepper'! On my way...")
 
-            recognized_words = speech_recognition.getRecognizedWords()
-            if recognized_words and "Come here Pepper" in recognized_words:
-                print("Recognized 'Come here Pepper'! Moving toward sound...")
+                    motion.moveTo(0, 0, np.deg2rad(azimuth)) #converting from degrees to radians, and pepper changing to face that direction
+                    motion.moveTo(1.0, 0, 0) #move 1.0 metre towards the sound
 
-                motion.moveTo(0, 0, np.deg2rad(azimuth))
-                motion.moveTo(0.5, 0, 0) 
-                detected = True
-                break
+                    while True:
+                        obstacle_front = memory.getData("Device/SubDeviceList/US/Front/Sensor/Value")#checking if obstacle in front of pepper using front sonar sensor
+                        if obstacle_front < 0.6: #checking if an obstacle is detected within 0.6 metres
+                            print("I detected an obstacle, so I am stopping here...")
+                            pepper_tts("I detected an obstacle so I am stopping here")
+                            motion.stopMove()
+                            break
+                        time.sleep(0.5)
+                    detected = True
+                    break
+            time.sleep(0.5)
+        speech_recognition.unsubscribe("Summoning_Pepper")
 
-        time.sleep(1)  # Small delay to avoid overloading
-
-    speech_recognition.unsubscribe("PepperCommand")
-
-    if not detected:
-        print("Did not hear command in time."
-    print("Being summoned...")
-    pepper_tts("On my way")
-
+        if not detected:
+            print("I'm sorry, I did not hear 'Come here Pepper'")
+            pepper_tts("I'm sorry, I did not hear 'Come here Pepper'")
 def pepper_checkTouch():
     print("Checking for touch...")
     touched_sensors = touch.getStatus()
