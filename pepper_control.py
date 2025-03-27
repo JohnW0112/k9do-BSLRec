@@ -159,27 +159,94 @@ def pepper_summon():
         if not detected:
             print("I'm sorry, I did not hear 'Come here Pepper'")
             pepper_tts("I'm sorry, I did not hear 'Come here Pepper'")
-def pepper_checkTouch():
+
+def set_pose_for_sensor(sensor_name, motion):
+    names = list()
+    times = list()
+    keys = list()
+    
+    if "Head" in sensor_name:
+        #BSL sign for thank you/please
+        names.append("RShoulderPitch")
+        times.append([0.5, 1.0])
+        keys.append([[1.85878, [3, -0.133333, 0], [3, 0, 0]],
+                    [1.85878, [3, -0.133333, 0], [3, 0, 0]]])
+
+        names.append("RElbowRoll")
+        times.append([0.5, 1.0])
+        keys.append([[0.98262, [3, -0.133333, 0], [3, 0, 0]],
+                    [0.98262, [3, -0.133333, 0], [3, 0, 0]]])
+
+        names.append("RShoulderRoll")
+        times.append([0.5, 1.0])
+        keys.append([[0.7375, [3, -0.133333, 0], [3, 0, 0]],
+                    [0.7375, [3, -0.133333, 0], [3, 0, 0]]])
+
+        names.append("RElbowYaw")
+        times.append([0.5, 1.0])
+        keys.append([[-0.663225, [3, -0.133333, 0], [3, 0, 0]],
+                    [0, [3, -0.133333, 0], [3, 0, 0]]])
+
+        names.append("RWristYaw")
+        times.append([0.5, 1.0])
+        keys.append([[-1.73835, [3, -0.133333, 0], [3, 0, 0]]])
+
+        names.append("RHand")
+        times.append([0.5, 1.0])
+        keys.append([[0.67, [3, -0.133333, 0], [3, 0, 0]],
+                    [0.67, [3, -0.133333, 0], [3, 0, 0]]])
+
+    elif "HandLeft" in sensor_name:
+        #test movement
+        names.append("RShoulderPitch")
+        times.append([0.5, 1.0])
+        keys.append([[1.85878, [3, -0.133333, 0], [3, 0, 0]],
+                    [1.85878, [3, -0.133333, 0], [3, 0, 0]]])
+
+    elif "HandRight" in sensor_name:
+        #test movement
+        names.append("RShoulderRoll")
+        times.append([0.5, 1.0])
+        keys.append([[0.7375, [3, -0.133333, 0], [3, 0, 0]],
+                    [-1.0, [3, -0.133333, 0], [3, 0, 0]]])
+
+
+    elif "Bumper" in sensor_name:    
+        #test movement
+        names.append("RWristYaw")
+        times.append([0.5, 1.0])
+        keys.append([[-1.73835, [3, -0.133333, 0], [3, 0, 0]],
+                    [0, [3, -0.133333, 0], [3, 0, 0]]])
+
+
+    if names:
+        motion.angleInterpolationBezier(names, times, keys)
+
+def pepper_checkTouch(touch, tts, motion):
     print("Checking for touch...")
-    touched_sensors = touch.getStatus()
+    touched_sensors = touch.getStatus()  # Getting the touch sensor status
     
     for sensor in touched_sensors:
-        sensor_name = sensor[0]  # Name of the sensor
+        sensor_name = sensor[0]  # name of the sensor
         is_touched = sensor[1]  # 1 if touched, 0 if not
         
         if is_touched:
-            pepper_tts("Oh hi there, how can I help you")
+            print("Try touching one of my sensors and I'll perform a BSL sign!")
+            tts.say("Try touching one of my sensors and I'll perform a BSL sign!") 
 
-            '''
+            # do particular motion for sensor touched
+            set_pose_for_sensor(sensor_name, motion)
+
+            # explain that head sensor touched and what is being signed
             if "Head" in sensor_name:
-                tts.say("head")
+                print("Head sensor touched: performing BSL sign for 'Thank you'/'Please'...")
+                tts.say("Head sensor touched: performing BSL sign for 'Thank you'/'Please'...")
             elif "HandLeft" in sensor_name:
                 tts.say("hand left")
             elif "HandRight" in sensor_name:
                 tts.say("hand right")
             elif "Bumper" in sensor_name:
                 tts.say("bumper")
-            '''
 
 if __name__=="__main__":
     try:
@@ -208,6 +275,10 @@ if __name__=="__main__":
 
             elif data == 'f':
                 pepper_sing()
+            elif data == '1':
+                pepper_summon()
+            elif data == '3':
+                #not sure how to call functions here
 
     finally:
         video_service.unsubscribe(subscriber_id)
