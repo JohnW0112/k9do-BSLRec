@@ -4,7 +4,8 @@ import socket
 import struct
 import numpy as np
 from naoqi import ALProxy
-from time import sleep
+import time
+import argparse
 
 # Pepper's IP and Port
 PEPPER_IP = "192.168.0.109"  # Pepper IP
@@ -15,7 +16,7 @@ PORT = 9559
 resolution = 3              # 1280x960
 color_space = 13            # BGR color space
 fps = 10                    # max fos = 30
-
+'''
 # Set up a server socket to receive messages
 HOST = '127.0.0.1'  # Localhost
 PORT_CONTROL = 5005  # For getting command
@@ -34,15 +35,17 @@ server_socket_vid.listen(1)
 print("Waiting for video feed connection from process.py...")
 conn_vid, addr_vid = server_socket_vid.accept()
 print("Connected to:", addr_vid)
-
+'''
 # Create proxy
 '''
 Everything you need from the NAOqi should be defined here. I just imported some basic proxies
 '''
-video_service = ALProxy("ALVideoDevice", PEPPER_IP, PORT)
+video_service = ALProxy("ALVideoRecorder", PEPPER_IP, PORT)
 posture = ALProxy("ALRobotPosture", PEPPER_IP, PORT)
 behavior = ALProxy("ALBehaviorManager", PEPPER_IP, PORT)
 touch = ALProxy("ALTouch", PEPPER_IP, PORT)
+tts = ALProxy("ALTextToSpeech", PEPPER_IP, PORT)
+photoCaptureProxy = ALProxy("ALPhotoCapture", PEPPER_IP, PORT)
 
 def pepper_tts(word):
     #TODO: Text-2-speech
@@ -115,34 +118,50 @@ def pepper_checkTouch():
 if __name__=="__main__":
     try:
         # Get video feed and send to process.py
-        subscriber_id = video_service.subscribeCamera("pepper_stream", 0, resolution, color_space, fps)
+        tts.say("Hello")
+        
+        photoCaptureProxy.setResolution(2)
+        photoCaptureProxy.setPictureFormat("jpg")
+        photoCaptureProxy.takePictures(3, "C:/Users/Eldon/Desktop", "image")
+        video_service.setFrameRate(10)
+        video_service.setResolution(2) # Set resolution to VGA (640 x 480)
+        # We'll save a 5 second video record in /home/nao/recordings/cameras/
 
-        while True:
-            image_container = video_service.getImageRemote(subscriber_id)
-            if image_container:
-                width, height = image_container[0], image_container[1]
-                array = image_container[6]
-                frame = np.frombuffer(array, dtype=np.uint8).reshape((height, width, 3))
-
-                # Send frame size and data
-                conn_vid.sendall(struct.pack("L", len(frame.tobytes())) + frame.tobytes())
-            data = conn_con.recv(1024).decode()
-            if not data:
-                break
+        #while True:
 
 
-            if data == 'c':
-                pepper_call()
+            # This records a 320*240 MJPG video at 10 fps.
+            # Note MJPG can't be recorded with a framerate lower than 3 fps.
+        video_service.startRecording("C:/Users/Eldon/Desktop", "myvideo")
 
-            elif data == 'z':
-                pepper_raiseArm()
+        time.sleep(5)
 
-            elif data == 'f':
-                pepper_sing()
+        # Video file is saved on the robot in the
+        # /home/nao/recordings/cameras/ folder.
+        videoInfo = video_service.stopRecording()
+        print("Video was saved on the robot: ", videoInfo[1])
+        print( "Total number of frames: ", videoInfo[0])
+        '''
+        data = conn_con.recv(1024).decode()
+        if not data:
+            continue
+
+
+        if data == 'c':
+            pepper_call()
+
+        elif data == 'z':
+            pepper_raiseArm()
+
+        elif data == 'f':
+            pepper_sing()'
+        '''
 
     finally:
-        video_service.unsubscribe(subscriber_id)
+
+        ''' 
         conn_vid.close()
         conn_con.close()
         server_socket_vid.close()
-        server_socket_con.close()
+        server_socket_con.close()'
+        '''
