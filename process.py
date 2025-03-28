@@ -16,12 +16,14 @@ if __name__=="__main__":
     try:
         while True:
 
+
             # Execute a series of action according to character
             '''
             Right now for testing purpose, I use keyboard inputs.
             '''
             key = input("Enter command: ")
             print(key)
+            
 
             if key == ord('c'):
                 client_socket.send(b'c')
