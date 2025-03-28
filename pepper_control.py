@@ -104,6 +104,32 @@ def pepper_raiseArm():
     print("Lowering arm...")
     motion.setAngles(joint_names, lower_angles, speed)
 
+def call_j_person():
+    print("Who would you like to call? Mum, Dad, or Police?")
+    speech_recognition.setVocabulary(["Mum", "Dad", "Police"], False)
+    speech_recognition.subscribe("Call_J_Person")
+    
+    start_time = time.time()
+    detected = False
+    while time.time() - start_time < 10:  # Listen for 10 seconds
+        phrase_data = memory.getData("WordRecognized")
+        if phrase_data and len(phrase_data) > 1:
+            recognised_phrase = phrase_data[0]
+            confidence = phrase_data[1]
+        else:
+            recognised_phrase = ""
+            confidence = 0.0
+        
+        if recognised_phrase in ["Mum", "Dad", "Police"] and confidence > 0.5:
+            print("Calling {}...".format(recognised_phrase))
+            speech_recognition.unsubscribe("Call_J_Person")
+            return recognised_phrase
+        
+        time.sleep(0.5)
+    
+    speech_recognition.unsubscribe("Call_J_Person")
+    print("I don't understand. Please try again.")
+    return None
     
 
 def pepper_sing():
@@ -278,6 +304,10 @@ if __name__=="__main__":
             elif data == '1':
                 pepper_summon()
             elif data == '3':
+
+            elif data == 'N/a':
+                call_j_person()
+        
                 #not sure how to call functions here
 
     finally:
