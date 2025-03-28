@@ -50,7 +50,6 @@ tts = ALProxy("ALTextToSpeech", PEPPER_IP, PORT)
 photoCaptureProxy = ALProxy("ALPhotoCapture", PEPPER_IP, PORT)
 
 def pepper_tts(word):
-    #TODO: Text-2-speech
     print("TTS started...")
     tts.say(word)
 
@@ -121,7 +120,7 @@ def pepper_checkTouch():
 if __name__=="__main__":
     try:
         # Get video feed and send to process.py
-        tts.say("Hello, this is Pepper. Your BSL recognition companion")
+        pepper_tts("Hello, this is Pepper. Your BSL recognition companion")
         
         session.connect("tcp://" + args.ip + ":" + str(args.port))
 
