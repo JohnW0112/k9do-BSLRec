@@ -3,12 +3,13 @@
 import socket
 import struct
 import numpy as np
+import qi
 from naoqi import ALProxy
 import time
 import argparse
 
 # Pepper's IP and Port
-PEPPER_IP = "192.168.0.109"  # Pepper IP
+PEPPER_IP = "192.168.0.119"  # Pepper IP
 PORT = 9559
 
 '''PARAMETERS'''
@@ -16,7 +17,15 @@ PORT = 9559
 resolution = 3              # 1280x960
 color_space = 13            # BGR color space
 fps = 10                    # max fos = 30
-'''
+parser = argparse.ArgumentParser()
+parser.add_argument("--ip", type=str, default=PEPPER_IP,
+                    help="Robot IP address. On robot or Local Naoqi: use '127.0.0.1'.")
+parser.add_argument("--port", type=int, default=9559,
+                    help="Naoqi port number")
+
+args = parser.parse_args()
+session = qi.Session()
+
 # Set up a server socket to receive messages
 HOST = '127.0.0.1'  # Localhost
 PORT_CONTROL = 5005  # For getting command
@@ -29,13 +38,6 @@ print("Waiting for control connection from process.py...")
 conn_con, addr_con = server_socket_con.accept()
 print("Connected to:", addr_con)
 
-server_socket_vid = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket_vid.bind((HOST, PORT_VIDEO))
-server_socket_vid.listen(1)
-print("Waiting for video feed connection from process.py...")
-conn_vid, addr_vid = server_socket_vid.accept()
-print("Connected to:", addr_vid)
-'''
 # Create proxy
 '''
 Everything you need from the NAOqi should be defined here. I just imported some basic proxies
@@ -50,6 +52,7 @@ photoCaptureProxy = ALProxy("ALPhotoCapture", PEPPER_IP, PORT)
 def pepper_tts(word):
     #TODO: Text-2-speech
     print("TTS started...")
+    tts.say(word)
 
 def pepper_ipadPrint(word):
     #TODO: Print words onto the ipad
@@ -118,44 +121,41 @@ def pepper_checkTouch():
 if __name__=="__main__":
     try:
         # Get video feed and send to process.py
-        tts.say("Hello")
+        tts.say("Hello, this is Pepper. Your BSL recognition companion")
         
-        photoCaptureProxy.setResolution(2)
-        photoCaptureProxy.setPictureFormat("jpg")
-        photoCaptureProxy.takePictures(3, "C:/Users/Eldon/Desktop", "image")
-        video_service.setFrameRate(10)
-        video_service.setResolution(2) # Set resolution to VGA (640 x 480)
-        # We'll save a 5 second video record in /home/nao/recordings/cameras/
+        session.connect("tcp://" + args.ip + ":" + str(args.port))
 
-        #while True:
+        print("Connected to Pepper!")
+        vid_recorder_service = session.service("ALVideoRecorder")
 
+        vid_recorder_service.setResolution(2)
+        vid_recorder_service.setFrameRate(10)
+        vid_recorder_service.setVideoFormat("MJPG")
+        vid_recorder_service.startRecording("/home/nao/recordings/cameras", "k9do")
 
-            # This records a 320*240 MJPG video at 10 fps.
-            # Note MJPG can't be recorded with a framerate lower than 3 fps.
-        video_service.startRecording("C:/Users/Eldon/Desktop", "myvideo")
+        time.sleep(20)
 
-        time.sleep(5)
+        videoInfo = vid_recorder_service.stopRecording()
 
-        # Video file is saved on the robot in the
-        # /home/nao/recordings/cameras/ folder.
-        videoInfo = video_service.stopRecording()
         print("Video was saved on the robot: ", videoInfo[1])
-        print( "Total number of frames: ", videoInfo[0])
-        '''
-        data = conn_con.recv(1024).decode()
-        if not data:
-            continue
+        print("Num frames: ", videoInfo[0])
+        while True:
+            pepper_checkTouch()
+            data = conn_con.recv(1024).decode()
+            if not data:
+                time.sleep(1)
+                continue
 
 
-        if data == 'c':
-            pepper_call()
+            if data == 'c':
+                pepper_call()
 
-        elif data == 'z':
-            pepper_raiseArm()
+            elif data == 'z':
+                pepper_raiseArm()
 
-        elif data == 'f':
-            pepper_sing()'
-        '''
+            elif data == 'f':
+                pepper_sing()
+            time.sleep(1)
 
     finally:
 
