@@ -110,6 +110,24 @@ def pepper_sing():
     #TODO: Sing
     print("Singing...")
 
+# Path to the MP3 file you uploaded to Pepper
+    mp3_file_path = "/home/nao/Pepper_song.mp3"  # Adjust the path based on where the file is uploaded
+
+    # Create the ALAudioPlayer proxy
+    try:
+        audio_player = ALProxy("ALAudioPlayer", PEPPER_IP, PORT)
+
+        # Load and play the MP3 file
+        audio_player.load(mp3_file_path)
+        audio_player.playFile(mp3_file_path)
+
+        print(f"Playing {mp3_file_path}")
+        pepper_tts("Now I am playing the song!")
+
+    except Exception as e:
+        print(f"Error playing MP3 file: {e}")
+        pepper_tts("Sorry, I couldn't play the song.")
+
 def pepper_summon():
     #TODO: Pepper respond to the call of its name, and move towards user
         speech_recognition.setLanguage("English") #sets recognised language as English
