@@ -1,7 +1,6 @@
 #! /usr/bin/python2
 
 import socket
-import struct
 import numpy as np
 import qi
 import time
@@ -15,9 +14,9 @@ PORT = 9559
 
 '''PARAMETERS'''
 # Subscribe to the video feed
-resolution = 3              # 1280x960
+resolution = 3              # VGA
 color_space = 13            # BGR color space
-fps = 10                    # max fos = 30
+fps = 10                    
 parser = argparse.ArgumentParser()
 parser.add_argument("--ip", type=str, default=PEPPER_IP,
                     help="Robot IP address. On robot or Local Naoqi: use '127.0.0.1'.")
@@ -45,25 +44,18 @@ Everything you need from the NAOqi should be defined here. I just imported some 
 '''
 video_service = ALProxy("ALVideoRecorder", PEPPER_IP, PORT)
 posture = ALProxy("ALRobotPosture", PEPPER_IP, PORT)
-behavior = ALProxy("ALBehaviorManager", PEPPER_IP, PORT)
 touch = ALProxy("ALTouch", PEPPER_IP, PORT)
 speech_recognition = ALProxy("ALSpeechRecognition", PEPPER_IP, PORT)
 motion = ALProxy("ALMotion", PEPPER_IP, PORT)
 audio = ALProxy("ALSoundLocalization", PEPPER_IP, PORT)
 memory = ALProxy("ALMemory", PEPPER_IP, PORT)
 tts = ALProxy("ALTextToSpeech", PEPPER_IP, PORT)
-photoCaptureProxy = ALProxy("ALPhotoCapture", PEPPER_IP, PORT)
 
 def pepper_tts(word):
     print("TTS started...")
     tts.say(word)
 
-def pepper_ipadPrint(word):
-    #TODO: Print words onto the ipad
-    print("Printing words")
-
 def pepper_call():
-    #TODO: Call someone according to selected contact and display "Calling ${CONTACT}" output onto ipad.
     print("Select call contact")
     while (not data):
         data = conn_con.recv(1024).decode()
@@ -102,7 +94,7 @@ def pepper_raiseArm():
     pepper_tts("Hi, I'm raising my arm!")
 
     # Hold for 2 seconds
-    sleep(2)
+    time.sleep(2)
 
     # Lower arm back down
     lower_angles = [1.5, 0.2, 1.2, 0.5]  # Relaxed natural posture
@@ -138,10 +130,9 @@ def call_j_person():
     
 
 def pepper_sing():
-    #TODO: Sing
     print("Singing...")
 
-# Path to the MP3 file you uploaded to Pepper
+    # Path to the MP3 file you uploaded to Pepper
     mp3_file_path = "/home/nao/Pepper_song.mp3"  # Adjust the path based on where the file is uploaded
 
     # Create the ALAudioPlayer proxy
@@ -160,7 +151,6 @@ def pepper_sing():
         pepper_tts("Sorry, I couldn't play the song.")
 
 def pepper_summon():
-    #TODO: Pepper respond to the call of its name, and move towards user
         speech_recognition.setLanguage("English") #sets recognised language as English
         vocabulary = ["Come here Pepper"] #setting vocabulary as the phrase 'come here pepper'
         speech_recognition.setVocabulary(vocabulary, False)  #"False" here turns off wordspotting
@@ -273,6 +263,7 @@ def set_pose_for_sensor(sensor_name, motion):
 
 def pepper_checkTouch(touch, tts, motion):
     print("Checking for touch...")
+    touchStatus = False
     touched_sensors = touch.getStatus()  # Getting the touch sensor status
     
     for sensor in touched_sensors:
@@ -280,6 +271,7 @@ def pepper_checkTouch(touch, tts, motion):
         is_touched = sensor[1]  # 1 if touched, 0 if not
         
         if is_touched:
+            touchStatus = True
             print("Try touching one of my sensors and I'll perform a BSL sign!")
             tts.say("Try touching one of my sensors and I'll perform a BSL sign!") 
 
@@ -296,6 +288,7 @@ def pepper_checkTouch(touch, tts, motion):
                 tts.say("hand right")
             elif "Bumper" in sensor_name:
                 tts.say("bumper")
+    return touchStatus
 
 if __name__=="__main__":
     try:
@@ -319,12 +312,13 @@ if __name__=="__main__":
         print("Video was saved on the robot: ", videoInfo[1])
         print("Num frames: ", videoInfo[0])
         while True:
-            pepper_checkTouch()
+            if (pepper_checkTouch() == True):
+                call_j_person()
+                pepper_summon()
             data = conn_con.recv(1024).decode()
             if not data:
                 time.sleep(1)
                 continue
-
 
             if data == 'c':
                 pepper_call()
