@@ -1,9 +1,7 @@
 #! /usr/bin/python3
 
 import cv2
-import numpy as np
 import socket
-import struct
 
 # Connect to the Python 2 server
 HOST = '127.0.0.1'  # Localhost
@@ -25,15 +23,24 @@ if __name__=="__main__":
             print(key)
             
 
-            if key == ord('c'):
+            if key == 'c':
                 client_socket.send(b'c')
 
-            elif key == ord('z'):
+            elif key == 'z':
                 client_socket.send(b'z')
 
-            elif key == ord('f'):
+            elif key == 'f':
                 client_socket.send(b'f')
+
+            elif key == '1':
+                client_socket.send(b'1')
+
+            elif key == '2':
+                client_socket.send(b'2')
+                
+            elif key == '3':
+                client_socket.send(b'3')
 
     finally:
         client_socket.close()
-        cv2.destroyAllWindows()
+
