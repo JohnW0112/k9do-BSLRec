@@ -3,12 +3,14 @@
 import socket
 import struct
 import numpy as np
+import qi
 import time
 from naoqi import ALProxy
-from time import sleep
+import time
+import argparse
 
 # Pepper's IP and Port
-PEPPER_IP = "192.168.0.109"  # Pepper IP
+PEPPER_IP = "192.168.0.119"  # Pepper IP
 PORT = 9559
 
 '''PARAMETERS'''
@@ -16,6 +18,14 @@ PORT = 9559
 resolution = 3              # 1280x960
 color_space = 13            # BGR color space
 fps = 10                    # max fos = 30
+parser = argparse.ArgumentParser()
+parser.add_argument("--ip", type=str, default=PEPPER_IP,
+                    help="Robot IP address. On robot or Local Naoqi: use '127.0.0.1'.")
+parser.add_argument("--port", type=int, default=9559,
+                    help="Naoqi port number")
+
+args = parser.parse_args()
+session = qi.Session()
 
 # Set up a server socket to receive messages
 HOST = '127.0.0.1'  # Localhost
@@ -29,18 +39,11 @@ print("Waiting for control connection from process.py...")
 conn_con, addr_con = server_socket_con.accept()
 print("Connected to:", addr_con)
 
-server_socket_vid = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket_vid.bind((HOST, PORT_VIDEO))
-server_socket_vid.listen(1)
-print("Waiting for video feed connection from process.py...")
-conn_vid, addr_vid = server_socket_vid.accept()
-print("Connected to:", addr_vid)
-
 # Create proxy
 '''
 Everything you need from the NAOqi should be defined here. I just imported some basic proxies
 '''
-video_service = ALProxy("ALVideoDevice", PEPPER_IP, PORT)
+video_service = ALProxy("ALVideoRecorder", PEPPER_IP, PORT)
 posture = ALProxy("ALRobotPosture", PEPPER_IP, PORT)
 behavior = ALProxy("ALBehaviorManager", PEPPER_IP, PORT)
 touch = ALProxy("ALTouch", PEPPER_IP, PORT)
@@ -48,10 +51,12 @@ speech_recognition = ALProxy("ALSpeechRecognition", PEPPER_IP, PORT)
 motion = ALProxy("ALMotion", PEPPER_IP, PORT)
 audio = ALProxy("ALSoundLocalization", PEPPER_IP, PORT)
 memory = ALProxy("ALMemory", PEPPER_IP, PORT)
+tts = ALProxy("ALTextToSpeech", PEPPER_IP, PORT)
+photoCaptureProxy = ALProxy("ALPhotoCapture", PEPPER_IP, PORT)
 
 def pepper_tts(word):
-    #TODO: Text-2-speech
     print("TTS started...")
+    tts.say(word)
 
 def pepper_ipadPrint(word):
     #TODO: Print words onto the ipad
@@ -295,20 +300,30 @@ def pepper_checkTouch(touch, tts, motion):
 if __name__=="__main__":
     try:
         # Get video feed and send to process.py
-        subscriber_id = video_service.subscribeCamera("pepper_stream", 0, resolution, color_space, fps)
+        pepper_tts("Hello, this is Pepper. Your BSL recognition companion")
+        
+        session.connect("tcp://" + args.ip + ":" + str(args.port))
 
+        print("Connected to Pepper!")
+        vid_recorder_service = session.service("ALVideoRecorder")
+
+        vid_recorder_service.setResolution(2)
+        vid_recorder_service.setFrameRate(10)
+        vid_recorder_service.setVideoFormat("MJPG")
+        vid_recorder_service.startRecording("/home/nao/recordings/cameras", "k9do")
+
+        time.sleep(20)
+
+        videoInfo = vid_recorder_service.stopRecording()
+
+        print("Video was saved on the robot: ", videoInfo[1])
+        print("Num frames: ", videoInfo[0])
         while True:
-            image_container = video_service.getImageRemote(subscriber_id)
-            if image_container:
-                width, height = image_container[0], image_container[1]
-                array = image_container[6]
-                frame = np.frombuffer(array, dtype=np.uint8).reshape((height, width, 3))
-
-                # Send frame size and data
-                conn_vid.sendall(struct.pack("L", len(frame.tobytes())) + frame.tobytes())
+            pepper_checkTouch()
             data = conn_con.recv(1024).decode()
             if not data:
-                break
+                time.sleep(1)
+                continue
 
 
             if data == 'c':
@@ -319,18 +334,10 @@ if __name__=="__main__":
 
             elif data == 'f':
                 pepper_sing()
-            elif data == '1':
-                pepper_summon()
-            elif data == '3':
 
-            elif data == 'N/a':
-                call_j_person()
-        
-                #not sure how to call functions here
+            time.sleep(1)
+
 
     finally:
-        video_service.unsubscribe(subscriber_id)
-        conn_vid.close()
-        conn_con.close()
-        server_socket_vid.close()
+
         server_socket_con.close()
